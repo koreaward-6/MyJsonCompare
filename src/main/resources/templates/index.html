@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang='ko'>
+<head>
+    <meta http-equiv='Content-Type' content='text/html; charset=utf-8'/>
+    <link rel="stylesheet" href="css/slick.grid.css" type="text/css"/>
+    <link rel="stylesheet" href="css/slick-alpine-theme.css" type="text/css"/>
+    <link rel="stylesheet" href="css/select2.css" type="text/css"/>
+
+    <style>
+    .myTable {
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-break: break-all;
+      overflow: auto;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .myTable th {
+      border: 1px solid black;
+      background-color: #F0F8FF;
+    }
+
+    .myTable td {
+      border: 0px solid black;
+    }
+
+    .myTable2 {
+      border-collapse: collapse;
+      table-layout: fixed;
+      word-break: break-all;
+      overflow: auto;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .myTable2 th {
+      border: 1px solid black;
+      background-color: #F0F8FF;
+    }
+
+    .myTable2 td {
+      border: 1px solid black;
+      vertical-align: top;
+    }
+
+    .myButton {
+      padding: 5px;
+      margin: 5px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+    }
+
+    .select2-container {
+      top: -3px;
+      left: -6px;
+    }
+
+    .select2-container .select2-selection--single {
+      height: 26px;
+    }
+
+    .delete {
+      text-align: center;
+    }
+
+    #loading {
+      height: 100%;
+      left: 0px;
+      position: fixed;
+      _position: absolute;
+      top: 0px;
+      width: 100%;
+      filter: alpha(opacity=50);
+      -moz-opacity: 0.5;
+      opacity: 0.5;
+    }
+
+    .loading {
+      background-color: white;
+      z-index: 999999;
+    }
+
+    #loading_img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      height: 200px;
+      margin-top: -75px;
+      margin-left: -75px;
+      z-index: 999999;
+    }
+    </style>
+</head>
+<body>
+<table style='width:1390px;' class='myTable'>
+    <tr align='center'>
+        <td>
+            <button type="button" class="myButton" onclick="addRow()">추가</button>
+            <button type="button" class="myButton" onclick="search()">조회</button>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <div id="myGrid" class="slick-container" style="width:1300px; margin: 0 auto;"></div>
+        </td>
+    </tr>
+</table>
+
+<div style="height:21px;"></div>
+
+<table style='width:100%' class='myTable2'>
+    <thead>
+    <tr align='center'>
+        <th style='width:50%'>LEFT</th>
+        <th style='width:50%'>RIGHT</th>
+    </tr>
+    </thead>
+    <tbody id="myTbody">
+    </tbody>
+</table>
+
+<script src="webjars/jquery/3.7.0/dist/jquery.min.js"></script>
+<script src="js/slick.core.js"></script>
+<script src="js/slick.interactions.js"></script>
+<script src="js/slick.grid.js"></script>
+<script src="js/slick.editors.js"></script>
+<script src="js/select2.js"></script>
+
+<script>
+  let grid;
+  let loading = $('<div id="loading" class="loading"></div>').appendTo(document.body).hide();
+
+  var methodList = {
+    GET: 'GET',
+    POST: 'POST',
+    PUT: 'PUT',
+    PATCH: 'PATCH',
+    DELETE: 'DELETE'
+  };
+
+  var columns = [
+    {
+      id: 'delete', name: 'Delete', field: '', cssClass: 'delete', formatter: function () {
+        return '<button class="delBtn">DEL</button>';
+      }, width: 90
+    },
+    {id: "method", name: "Method", field: "method", formatter: select2Formatter, editor: Select2Editor, dataSource: methodList, width: 100},
+    {id: "leftUrl", name: "Left URL", field: "leftUrl", editor: Slick.Editors.LongText, width: 500},
+    {id: "rightUrl", name: "Right URL", field: "rightUrl", editor: Slick.Editors.LongText, width: 250},
+    {id: "messageBody", name: "Message Body", field: "messageBody", editor: Slick.Editors.LongText, width: 350}
+  ];
+
+  var options = {
+    editable: true,
+    autoEdit: true,
+    autoCommitEdit: true,
+    autoHeight: true,
+    enableCellNavigation: true,
+    enableColumnReorder: false,
+  };
+
+  var data = [];
+  grid = new Slick.Grid("#myGrid", data, columns, options);
+
+  grid.onClick.subscribe(function (e, args) {
+    if ($(e.target).hasClass('delBtn')) {
+      data.splice(args.row, 1);
+      grid.invalidate();
+    }
+  });
+
+  function addRow() {
+    var data = grid.getData();
+    data.push({method: "GET", leftUrl: null, rightUrl: null, messageBody: null});
+    grid.updateRowCount();
+    grid.invalidateRow(data.length - 1);
+    grid.render();
+  }
+
+  function search() {
+    var arrayList = new Array();
+    var data = grid.getData();
+
+    // 메소드 선택후 그냥 조회버튼을 누르면 변경된 메소드가 반영(?)되지 않음.
+    // 강제로 반영시킴
+    grid.setOptions({autoEdit: true});
+
+    if (data.length == 0) {
+      alert("추가 버튼을 눌러서 데이터를 입력해 주세요.");
+      return;
+    }
+
+    for (var i = 0; i < data.length; i++) {
+      arrayList.push(data[i]);
+    }
+
+    var jsonData = JSON.stringify(arrayList);
+
+    $.ajax({
+      type: 'POST',
+      url: '/compare',
+      async: true,
+      dataType: 'json',
+      data: jsonData,
+      headers: {
+        "Content-Type": "application/json",
+        "X-HTTP-Method-Override": "POST"
+      },
+      beforeSend: function () {
+        sameYn = "Y";
+        $(".myButton").attr("disabled", true);
+        loading.show();
+      },
+      success: function (jsonResult) {
+        $(".myButton").attr("disabled", false);
+        loading.hide();
+        var sameYn = createTableData(jsonResult);
+
+        if (sameYn == "N") {
+            alert("데이터가 불일치 합니다.");
+        }
+      },
+      error: function (request, status, error) {
+        $(".myButton").attr("disabled", false);
+        loading.hide();
+        alert("오류가 발생했습니다.");
+      }
+    })
+  }
+
+  function createTableData(jsonResult) {
+    var append = "";
+    var sameYn = "Y";
+
+    for (var i = 0; i < jsonResult.length; i++) {
+      append += "<tr style='background-color: #F0F8FF; height: 39px;'>";
+      append += "    <td style='vertical-align: middle;'>" + jsonResult[i].leftUrl + "</td>";
+      append += "    <td style='vertical-align: middle;'>" + jsonResult[i].rightUrl + "</td>";
+      append += "</tr>";
+      append += "<tr>";
+      append += "    <td>" + jsonResult[i].leftData + "</td>";
+      append += "    <td>" + jsonResult[i].rightData + "</td>";
+      append += "</tr>";
+
+      if (jsonResult[i].sameYn == "N") {
+        sameYn = "N";
+      }
+    }
+
+    $("#myTbody").empty();
+    $('#myTbody:last').append(append);
+
+    return sameYn;
+  }
+
+  function PopulateSelect(select, dataSource, addBlank) {
+    var index, len, newOption;
+
+    if (addBlank) {
+      select.appendChild(new Option('', ''));
+    }
+
+    $.each(dataSource, function (value, text) {
+      newOption = new Option(text, value);
+      select.appendChild(newOption);
+    });
+  };
+
+  function Select2Editor(args) {
+    var $input;
+    var defaultValue;
+    var scope = this;
+    var calendarOpen = false;
+    this.keyCaptureList = [Slick.keyCode.UP, Slick.keyCode.DOWN, Slick.keyCode.ENTER];
+    this.init = function () {
+      $input = $('<select></select>');
+      $input.width(args.container.clientWidth + 3);
+      PopulateSelect($input[0], args.column.dataSource, true);
+      $input.appendTo(args.container);
+      $input.focus().select();
+
+      $input.select2({
+        placeholder: '-',
+        allowClear: true
+      });
+    };
+    this.destroy = function () {
+      $input.select2('close');
+      $input.select2('destroy');
+      $input.remove();
+    };
+    this.show = function () {
+    };
+    this.hide = function () {
+    };
+    this.position = function (position) {
+    };
+    this.focus = function () {
+      $input.select2('input_focus');
+    };
+    this.loadValue = function (item) {
+      defaultValue = item[args.column.field];
+      $input.val(defaultValue);
+      $input[0].defaultValue = defaultValue;
+      $input.trigger("change.select2");
+    };
+    this.serializeValue = function () {
+      return $input.val();
+    };
+    this.applyValue = function (item, state) {
+      item[args.column.field] = state;
+    };
+    this.isValueChanged = function () {
+      return (!($input.val() == "" && defaultValue == null)) && ($input.val() != defaultValue);
+    };
+    this.validate = function () {
+      return {
+        valid: true,
+        msg: null
+      };
+    };
+    this.init();
+  }
+
+  function select2Formatter(row, cell, value, columnDef, dataContext) {
+    return columnDef.dataSource[value] || '-';
+  }
+</script>
+
+</body>
+</html>
+

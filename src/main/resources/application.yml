@@ -1,0 +1,14 @@
+
+server:
+  port: 3721
+
+spring:
+  thymeleaf:
+    # thymeleaf 참조 경로
+    prefix: classpath:/templates
+    suffix: .html
+    # thymeleaf에 대한 캐시를 남기지 않는다. cache=false 설정
+    cache: false
+    # templates 디렉토리에 파일이 있는지 없는지 체크, 없으면 에러를 발생시킨다.
+    check-template-location: true
+    order: 0
