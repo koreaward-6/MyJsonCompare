@@ -26,7 +26,7 @@ Left URL과 Right URL의 Json 데이터를 서로 비교해서 다른 부분을 
 
     7. 필요한 경우 Message Body 입력
 
-    8. 조회 버튼 클릭
+    8. 비교 버튼 클릭
 
     * 아래 GIF 참조
 
